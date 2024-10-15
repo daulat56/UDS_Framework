@@ -1,6 +1,7 @@
 {
     "files.associations": {
         "can.h": "c",
-        "stdlib.h": "c"
+        "stdlib.h": "c",
+        "server.h": "c"
     }
 }
