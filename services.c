@@ -25,14 +25,14 @@ bool authentication()
 #define MIN_ECURE_SESSION_LENGTH 2
 
 /*Define the UDS Service Table */
-UDS_Table usdTable = {.row = {
+UDS_Table udsTable = {.row = {
                           {.service_id = DIAGNOSTIC_SESSION_CONTROL, .min_data_length = MIN_DIA_SESSION_LENGTH, .service_handler = &diagnosticControl, .allowed_sessions = (DEFAULT_SESSION || PROGRAMMING_SESSION || EXTENDED_SESSION), .auth = true, .secSupp = 1, .security_level = {UnlockedL1}}},
                       .size = 1};
 
 size_t getUDSTable(UDS_Table *tableReference)
 {
-    printf("the size is %d and sid is : %x\n", usdTable.size, usdTable.row->service_id);
-    memcpy(tableReference, &usdTable, sizeof(UDS_Table));
+    printf("the size is %d and sid is : %x\n", udsTable.size, udsTable.row->service_id);
+    memcpy(tableReference, &udsTable, sizeof(UDS_Table));
 }
 
 #define RESPONSE_LENGTH 8
