@@ -10,21 +10,74 @@
 #include <net/if.h>
 #include <linux/can.h>
 #include <linux/can/raw.h>
-#include "services.h"
+//#include "services.h"
 #include "server.h"
+//#include "digSessControl.h"
+#include "services/udsDigCon/digSessControl.h"
+#include "services/udsEcuReset/ecuReset.h"
 
 #define CAN_INTERFACE "vcan0"  // Replace with your CAN interface name
 
-FrameType identifyFrameType(struct can_frame *frame) {
-    uint8_t pci_type = (frame->data[0] & 0xF0) >> 4;
 
-    switch (pci_type) {
-        case 0x00:
-            return SINGLE_FRAME;
-        case 0x01:
-            return MULTI_FRAME;
-        default:
-            return -1; 
+/* Function to send a negative response */
+void sendNegativeResponse(uint8_t original_sid, uint8_t error_code) {
+    struct can_frame response_frame;
+    
+    // Prepare the response CAN frame (using standard UDS negative response format)
+    response_frame.can_id = 0x7DF; // Change to appropriate ID if needed
+    response_frame.can_dlc = 3;    // Response length
+    response_frame.data[0] = 0x7F; // Negative response identifier
+    response_frame.data[1] = original_sid; // Original SID that caused the error
+    response_frame.data[2] = error_code;   // Error code, e.g., 0x11 for "Service Not Supported"
+
+    // Send the frame (assuming socket is already set up)
+    int sockfd = getSocket();
+    if (sockfd >= 0) {
+        if (write(sockfd, &response_frame, sizeof(struct can_frame)) != sizeof(struct can_frame)) {
+            perror("Error sending negative response frame");
+        } else {
+            printf("Negative response sent: 0x7F 0x%02X 0x%02X\n", original_sid, error_code);
+        }
+    }
+}
+/* Authentication function */
+bool authentication()
+{
+    /* Need to implement authentication logic here */
+    return true;
+}
+/*Define the UDS Service Table */
+UDS_Table udsTable = {.row = {
+                          {.service_id = DIAGNOSTIC_SESSION_CONTROL, .min_data_length = MIN_DIA_SESSION_LENGTH, .service_handler = &diagnosticControl, .allowed_sessions = (DEFAULT_SESSION || PROGRAMMING_SESSION || EXTENDED_SESSION), .auth = true, .secSupp = 1, .security_level = {UnlockedL1}},
+                          {.service_id = ECU_RESET, .min_data_length = ECU_RESET_MIN_LENGTH, .service_handler = &ecuReset, .allowed_sessions = (DEFAULT_SESSION || PROGRAMMING_SESSION || EXTENDED_SESSION), .auth = true, .secSupp = 1, .security_level = {UnlockedL1}}
+                            },
+                      .size = 2};
+
+size_t getUDSTable(UDS_Table *tableReference)
+{
+    printf("the size is %d and sid is : %x\n", udsTable.size, udsTable.row->service_id);
+    memcpy(tableReference, &udsTable, sizeof(UDS_Table));
+}
+
+FrameType identifyFrameType(struct can_frame *frame) {
+    // Print the first byte from the data array
+    printf("identify frame type is called with first byte as 0x%02X\n", frame->data[0]);
+
+    // Extract PCI type
+    uint8_t pci_type = (frame->data[0] & 0xF0) >> 4;
+    
+    // Print the PCI type
+    printf("PCI Type: %X\n", pci_type);
+    
+    if (pci_type == 0) {
+        // Single frame
+        return SINGLE_FRAME;
+    } else if (pci_type == 1) {
+        // First frame of multi-frame message
+        return MULTI_FRAME;
+    } else {
+        // Handle other cases (not implemented in this example)
+        return -1;  // Default case for unknown types
     }
 }
 
@@ -93,6 +146,11 @@ void handleService(ProcessedFrame *processedFrame) {
             printf("Response Code: 0x%02X\n", response_code);
             return;
         }
+        else{
+             // If no matching SID is found, send a negative response
+            printf("Unsupported SID: 0x%02X\n", processedFrame->sid);
+            sendNegativeResponse(processedFrame->sid, 0x11); // Send "Service Not Supported" response
+        }
         
     }
     printf("Unknown or unsupported SID: 0x%02X\n", processedFrame->sid);
@@ -100,7 +158,8 @@ void handleService(ProcessedFrame *processedFrame) {
 
 void callProcess(struct can_frame *frame)
 {
-    identifyFrameType(frame);
+    printf("call process has been callled");
+    //identifyFrameType(frame);
     ProcessedFrame processedFrame = processCanFrame(frame);
     handleService(&processedFrame);
 }
@@ -180,6 +239,7 @@ int main() {
         int nbytes = read(sockfd, &frame, sizeof(struct can_frame));
         if (nbytes > 0) {
             // Process the incoming CAN frame
+            
             callProcess(&frame);
         } else {
             perror("read");

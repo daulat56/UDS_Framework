@@ -11,31 +11,9 @@
 #include <net/if.h>
 #include <linux/can.h>
 #include <linux/can/raw.h>
-#include "services.h"
-#include "server.h"
+#include "../../server.h"
+#include "digSessControl.h"
 
-/* Authentication function */
-bool authentication()
-{
-    /* Need to implement authentication logic here */
-    return true;
-}
-
-#define MIN_DIA_SESSION_LENGTH 2
-#define MIN_ECURE_SESSION_LENGTH 2
-
-/*Define the UDS Service Table */
-UDS_Table udsTable = {.row = {
-                          {.service_id = DIAGNOSTIC_SESSION_CONTROL, .min_data_length = MIN_DIA_SESSION_LENGTH, .service_handler = &diagnosticControl, .allowed_sessions = (DEFAULT_SESSION || PROGRAMMING_SESSION || EXTENDED_SESSION), .auth = true, .secSupp = 1, .security_level = {UnlockedL1}}},
-                      .size = 1};
-
-size_t getUDSTable(UDS_Table *tableReference)
-{
-    printf("the size is %d and sid is : %x\n", udsTable.size, udsTable.row->service_id);
-    memcpy(tableReference, &udsTable, sizeof(UDS_Table));
-}
-
-#define RESPONSE_LENGTH 8
 
 /* Diagnostic Session Control service function */
 uint32_t diagnosticControl(void *frame)
