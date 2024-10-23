@@ -146,22 +146,18 @@ void handleService(ProcessedFrame *processedFrame) {
             printf("Response Code: 0x%02X\n", response_code);
             return;
         }
-        else{
-             // If no matching SID is found, send a negative response
-            printf("Unsupported SID: 0x%02X\n", processedFrame->sid);
-            sendNegativeResponse(processedFrame->sid, 0x11); // Send "Service Not Supported" response
-        }
-        
     }
     printf("Unknown or unsupported SID: 0x%02X\n", processedFrame->sid);
+    sendNegativeResponse(processedFrame->sid, 0x11); // Send "Service Not Supported" response
 }
-
+int count=0;
 void callProcess(struct can_frame *frame)
 {
-    printf("call process has been callled");
+    printf("call process has been callled with count %d\n",count);
     //identifyFrameType(frame);
     ProcessedFrame processedFrame = processCanFrame(frame);
     handleService(&processedFrame);
+    count++;
 }
 
 
@@ -241,6 +237,7 @@ int main() {
             // Process the incoming CAN frame
             
             callProcess(&frame);
+            sleep(200000000);
         } else {
             perror("read");
         }
