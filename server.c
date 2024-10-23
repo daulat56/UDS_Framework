@@ -233,6 +233,7 @@ int main() {
     while (1) {
         // Read the CAN frame
         int nbytes = read(sockfd, &frame, sizeof(struct can_frame));
+        initializeSession();
         if (nbytes > 0) {
             // Process the incoming CAN frame
             

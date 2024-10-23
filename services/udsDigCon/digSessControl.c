@@ -44,14 +44,22 @@ uint32_t diagnosticControl(void *frame)
         response_frame.data[2] = response_code; // NRC
         response_code = 0x13; // NRC: Incorrect message length or invalid format
     }
-    else if (subfunction == udsServiceTable.row[0].allowed_sessions)
+    //else if (subfunction == udsServiceTable.row[0].allowed_sessions)
+    else if (isSessionAllowed(DIAGNOSTIC_SESSION_CONTROL, subfunction))
     {
         if (authentication())
         {
+            // Update the session
+            updateSession((SubFunctionType)subfunction);
             // Set positive response in CAN frame
             response_frame.data[0] = data_length;  // Positive response code for Diagnostic Session Control
             response_frame.data[1] = sid+0x40;   // SID
             response_frame.data[2] = subfunction; // Subfunction
+            response_frame.data[3] = (g_session_info.p2_server_max >> 8) & 0xFF;
+            response_frame.data[4] = g_session_info.p2_server_max & 0xFF;
+            response_frame.data[5] = (g_session_info.p2_star_server_max >> 8) & 0xFF;
+            response_frame.data[6] = g_session_info.p2_star_server_max & 0xFF;
+            response_frame.can_dlc = 7;
             printf("Ready to send positive response:\n");
         }
         else

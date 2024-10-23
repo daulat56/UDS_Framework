@@ -13,7 +13,7 @@ void initializeSession(void) {
     g_session_info.p2_star_server_max = P2_STAR_SERVER_MAX;
 }
 
-void updateSession(SessionType new_session) {
+void updateSession(SubFunctionType new_session) {
     g_session_info.current_session = new_session;
     
     // Update timing parameters based on the new session
@@ -37,7 +37,7 @@ void updateSession(SessionType new_session) {
     printf("P2_STAR_SERVER_MAX: %u ms\n", g_session_info.p2_star_server_max);
 }
 
-bool isSessionAllowed(ServiceState service, SessionType session) {
+bool isSessionAllowed(ServiceState service, SubFunctionType session) {
     UDS_Table udsServiceTable = {};
     getUDSTable(&udsServiceTable);
     

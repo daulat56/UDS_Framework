@@ -29,7 +29,10 @@ uint32_t ecuReset(void *frame) {
 
     if (data_length < ECU_RESET_MIN_LENGTH) {
         response_code = 0x13;  // NRC: Incorrect message length or invalid format
-    } else {
+    }else if (!isSessionAllowed(ECU_RESET, g_session_info.current_session)) {
+        response_code = 0x7F;  // NRC: Service not supported in current session
+    }
+    else {
         switch (resetType) {
             case HARD_RESET:
                 printf("Hard reset requested\n");

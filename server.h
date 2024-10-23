@@ -13,7 +13,8 @@
 #define ECU_RESET_MIN_LENGTH 2
 #define MIN_DIA_SESSION_LENGTH 2
 #define RESPONSE_LENGTH 8
-
+#define P2_SERVER_MAX 65535 // Example value in milliseconds
+#define P2_STAR_SERVER_MAX 655350 // Example value in milliseconds
 typedef enum
 {
    UnlockedL1 =0x01,
@@ -54,6 +55,11 @@ typedef enum {
     EXTENDED_SESSION    = 0X03
 } SubFunctionType;
 
+typedef struct {
+    SubFunctionType current_session;
+    uint32_t p2_server_max;
+    uint32_t p2_star_server_max;
+} SessionInfo;
 /* Define enumeration type for FrameType */
 typedef enum {
     SINGLE_FRAME = 1,
@@ -96,7 +102,10 @@ void prepare_response(uint8_t *response_data, uint32_t response_code, ServiceSta
 //size_t getUDSTable(UDS_Table *tableReference);
 // Change the UdsTable declaration to an external declaration
 extern UDS_Table udsTable;
-
+extern SessionInfo g_session_info;
+void initializeSession(void);
+void updateSession(SubFunctionType new_session);
+bool isSessionAllowed(ServiceState service, SubFunctionType session);
 // Change the getUDSTable function to a declaration
 size_t getUDSTable(UDS_Table *tableReference);
 bool authentication(void);

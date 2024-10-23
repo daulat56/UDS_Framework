@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-
+#include <stddef.h>
 // Add this new enum for ECU_RESET subfunctions
 typedef enum {
     HARD_RESET = 0x01,

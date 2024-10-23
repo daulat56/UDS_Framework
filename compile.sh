@@ -11,7 +11,7 @@ mkdir -p "$OUTPUT_DIR"
 gcc -I"$CURRENT_DIR" "$CURRENT_DIR/client.c" -o "$OUTPUT_DIR/client" -lm
 
 # Compile the server with the digSessControl
-gcc -I"$CURRENT_DIR" "$CURRENT_DIR/server.c" "$CURRENT_DIR/services/udsDigCon/digSessControl.c" "$CURRENT_DIR/services/udsEcuReset/ecuReset.c" -o "$OUTPUT_DIR/server" -lm
+gcc -I"$CURRENT_DIR" "$CURRENT_DIR/server.c" "$CURRENT_DIR/services/udsDigCon/digSessControl.c" "$CURRENT_DIR/services/udsEcuReset/ecuReset.c" "$CURRENT_DIR/sessionManager.c" -o "$OUTPUT_DIR/server" -lm
 
 
 
