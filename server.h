@@ -13,8 +13,8 @@
 #define ECU_RESET_MIN_LENGTH 2
 #define MIN_DIA_SESSION_LENGTH 2
 #define RESPONSE_LENGTH 8
-#define P2_SERVER_MAX 65535 // Example value in milliseconds
-#define P2_STAR_SERVER_MAX 655350 // Example value in milliseconds
+#define P2_SERVER_MAX 200 // Example value in milliseconds
+#define P2_STAR_SERVER_MAX 300 // Example value in milliseconds
 typedef enum
 {
    UnlockedL1 =0x01,
@@ -79,7 +79,7 @@ typedef struct {
 typedef struct {
     ServiceState service_id;              // The service ID (e.g., DIAGNOSTIC_SESSION_CONTROL)
     uint8_t min_data_length;              // Minimum required data length for the service
-    uint32_t (*service_handler)(void*);   // Pointer to the service handler function
+    struct can_frame (*service_handler)(void*);   // Pointer to the service handler function
     uint8_t allowed_sessions;             // Sessions allowed for this service
     uint8_t auth;                         // Authentication
     uint8_t secSupp;                       // Security suppression
@@ -92,10 +92,19 @@ typedef struct {
     uint8_t size;
 }UDS_Table;
 
+/*Subfunction with its properties*/
+typedef struct {
+
+}subfunctionTable;
+
+typedef struct{
+    subfunctionTable row[2];
+    uint8_t size;
+}serviceTable;
 
 
 /* Function pointer type definition for UDS service handlers */
-typedef uint32_t (*ServiceHandler)(ProcessedFrame frame);
+typedef struct can_frame (*ServiceHandler)(ProcessedFrame frame);
 void prepare_response(uint8_t *response_data, uint32_t response_code, ServiceState sid, SubFunctionType subfunction);
 
 /* Declare the size of the UDS Service Table */
@@ -106,6 +115,7 @@ extern SessionInfo g_session_info;
 void initializeSession(void);
 void updateSession(SubFunctionType new_session);
 bool isSessionAllowed(ServiceState service, SubFunctionType session);
+bool isSessionAllowedInService(ServiceState service, SubFunctionType requested_session);
 // Change the getUDSTable function to a declaration
 size_t getUDSTable(UDS_Table *tableReference);
 bool authentication(void);

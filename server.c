@@ -20,7 +20,7 @@
 
 
 /* Function to send a negative response */
-void sendNegativeResponse(uint8_t original_sid, uint8_t error_code) {
+struct can_frame sendNegativeResponse(uint8_t original_sid, uint8_t error_code) {
     struct can_frame response_frame;
     
     // Prepare the response CAN frame (using standard UDS negative response format)
@@ -39,7 +39,9 @@ void sendNegativeResponse(uint8_t original_sid, uint8_t error_code) {
             printf("Negative response sent: 0x7F 0x%02X 0x%02X\n", original_sid, error_code);
         }
     }
+    return response_frame;
 }
+
 /* Authentication function */
 bool authentication()
 {
@@ -49,13 +51,13 @@ bool authentication()
 /*Define the UDS Service Table */
 UDS_Table udsTable = {.row = {
                           {.service_id = DIAGNOSTIC_SESSION_CONTROL, .min_data_length = MIN_DIA_SESSION_LENGTH, .service_handler = &diagnosticControl, .allowed_sessions = (DEFAULT_SESSION || PROGRAMMING_SESSION || EXTENDED_SESSION), .auth = true, .secSupp = 1, .security_level = {UnlockedL1}},
-                          {.service_id = ECU_RESET, .min_data_length = ECU_RESET_MIN_LENGTH, .service_handler = &ecuReset, .allowed_sessions = (DEFAULT_SESSION || PROGRAMMING_SESSION || EXTENDED_SESSION), .auth = true, .secSupp = 1, .security_level = {UnlockedL1}}
+                          {.service_id = ECU_RESET, .min_data_length = ECU_RESET_MIN_LENGTH, .service_handler = &ecuReset, .allowed_sessions = (DEFAULT_SESSION || EXTENDED_SESSION), .auth = true, .secSupp = 1, .security_level = {UnlockedL1}}
                             },
                       .size = 2};
 
 size_t getUDSTable(UDS_Table *tableReference)
 {
-    printf("the size is %d and sid is : %x\n", udsTable.size, udsTable.row->service_id);
+    //printf("the size is %d and sid is : %x\n", udsTable.size, udsTable.row->service_id);
     memcpy(tableReference, &udsTable, sizeof(UDS_Table));
 }
 
@@ -80,7 +82,6 @@ FrameType identifyFrameType(struct can_frame *frame) {
         return -1;  // Default case for unknown types
     }
 }
-
 
 /* Function to extract data from the first frame of a multi-frame message */
 void extract_first_frame_data(struct can_frame *frame, uint16_t *total_length, uint8_t *SID, uint8_t *subfunction) {
@@ -135,29 +136,29 @@ ProcessedFrame processCanFrame(struct can_frame *frame) {
     return result;
 }
 
-void handleService(ProcessedFrame *processedFrame) {
+struct can_frame handleService(ProcessedFrame *processedFrame) {
+    struct can_frame response_code;
     UDS_Table udsServiceTable={};
     getUDSTable(&udsServiceTable);
-    printf("size of table : %d\n",udsServiceTable.size);
+    //printf("size of table : %d\n",udsServiceTable.size);
     for (int i = 0; i < udsServiceTable.size; i++) {
-        printf("the SID is : %d \n",udsServiceTable.row[i].service_id );
+        //printf("the SID is : %d \n",udsServiceTable.row[i].service_id );
        if (udsServiceTable.row[i].service_id == processedFrame->sid) {
-            uint32_t response_code = udsServiceTable.row[i].service_handler(processedFrame);
-            printf("Response Code: 0x%02X\n", response_code);
-            return;
+            response_code = udsServiceTable.row[i].service_handler(processedFrame);
+            //printf("Response Code: 0x%02X\n", response_code);
+            return response_code;
         }
     }
     printf("Unknown or unsupported SID: 0x%02X\n", processedFrame->sid);
     sendNegativeResponse(processedFrame->sid, 0x11); // Send "Service Not Supported" response
 }
-int count=0;
-void callProcess(struct can_frame *frame)
-{
-    printf("call process has been callled with count %d\n",count);
-    //identifyFrameType(frame);
+
+struct can_frame callProcess(struct can_frame *frame)
+{    //identifyFrameType(frame);
+    struct can_frame response_code;
     ProcessedFrame processedFrame = processCanFrame(frame);
-    handleService(&processedFrame);
-    count++;
+    response_code=handleService(&processedFrame);
+    return response_code;
 }
 
 
@@ -205,6 +206,9 @@ int main() {
     struct sockaddr_can addr;
     struct can_frame frame;
     struct ifreq ifr;
+    // Set the socket to receive only messages from other nodes
+    int recv_own_msgs = 0; // 0 = disabled (don't receive own messages)
+    setsockopt(sockfd, SOL_CAN_RAW, CAN_RAW_RECV_OWN_MSGS, &recv_own_msgs, sizeof(recv_own_msgs));
 
     // Create a socket
     if ((sockfd = socket(PF_CAN, SOCK_RAW, CAN_RAW)) < 0) {
@@ -230,20 +234,35 @@ int main() {
         return 1;
     }
 
+    printf("Server is running. Waiting for client messages...\n");
+    initializeSession();
     while (1) {
-        // Read the CAN frame
         int nbytes = read(sockfd, &frame, sizeof(struct can_frame));
-        initializeSession();
         if (nbytes > 0) {
-            // Process the incoming CAN frame
+            printf("Received frame from client. Processing...\n");
             
-            callProcess(&frame);
-            sleep(200000000);
+            // Call process and get the response frame
+            struct can_frame response_frame = callProcess(&frame);
+            // Send the response frame directly from main
+            if (write(sockfd, &response_frame, sizeof(struct can_frame)) != sizeof(struct can_frame)) {
+                perror("Error sending response frame");
+            } else {
+                printf("Response frame sent: CAN ID: 0x%03X, Data: ", response_frame.can_id);
+                for (int i = 0; i < response_frame.can_dlc; i++) {
+                    printf("0x%02X ", response_frame.data[i]);
+                }
+                printf("\n");
+            }
+            
+        } else if (nbytes == 0) {
+            printf("End of file reached\n");
+            break;
         } else {
             perror("read");
+            break;
         }
+        sleep(10);
     }
-
     close(sockfd);
     return 0;
 }

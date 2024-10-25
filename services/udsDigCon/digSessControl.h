@@ -4,6 +4,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-uint32_t diagnosticControl(void* frame);
+struct can_frame diagnosticControl(void* frame);
 
 #endif // DIG_SESS_CONTROL_H

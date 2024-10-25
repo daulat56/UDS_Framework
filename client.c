@@ -31,6 +31,19 @@ void send_can_message(int sockfd, uint32_t can_id, uint8_t *data) {
     }
     printf("\n");
 }
+void receive_can_response(int sockfd) {
+    struct can_frame response;
+    int nbytes = read(sockfd, &response, sizeof(response));
+    if (nbytes > 0) {
+        printf("Received response: ");
+        for (int i = 0; i < response.can_dlc; i++) {
+            printf("0x%02X ", response.data[i]);
+        }
+        printf("\n");
+    } else {
+        perror("read");
+    }
+}
 
 int main() {
     int sockfd;
@@ -61,28 +74,35 @@ int main() {
         return 1;
     }
 
-    // Example data frame (change as needed)
-    //uint8_t data[8] = {0x02, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00};  // {Length, Session, subfunction}/
-   //uint8_t data[8] = {0x10, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07};  // Total data length = 0x14 (20 bytes)/
-   uint8_t data[8]={0x02,0x11,0x02,0x02,0x00,0x00,0x00,0x00};
-
-
-    // Send the message
-    send_can_message(sockfd, 0x123, data);
-
-    // Wait for response
-    struct can_frame response;
-    int nbytes = read(sockfd, &response, sizeof(response));
-    if (nbytes > 0) {
-        printf("Received response: ");
-        for (int i = 0; i < response.can_dlc; i++) {
-            printf("0x%02X ", response.data[i]);
+    while(1){
+        uint8_t data[8]={0};
+        printf("enter the can msg (02 10 03 ..)");
+        for (int i = 0; i < 8; i++) {
+            unsigned int byte;
+            scanf("%x", &byte);  // Read user input as a hexadecimal value
+            data[i] = (uint8_t)byte;
         }
-        printf("\n");
-    } else {
-        perror("read");
+        // Send the message
+        send_can_message(sockfd, 0x123, data);
+        sleep(10);
+
+        struct can_frame response;
+        int nbytes = read(sockfd, &response, sizeof(response));
+        if (nbytes > 0) {
+            printf("Received response: ");
+            for (int i = 0; i < response.can_dlc; i++) {
+                printf("0x%02X ", response.data[i]);
+            }
+            printf("\n");
+        } else {
+            perror("read");
+        }
+
+
     }
 
+
+   
     close(sockfd);
     return 0;
 }

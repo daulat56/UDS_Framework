@@ -7,7 +7,7 @@
 
 #define ECU_RESET_MIN_LENGTH 2
 
-uint32_t ecuReset(void *frame) {
+struct can_frame ecuReset(void *frame) {
     printf("ecu reset is called");
     ProcessedFrame *processedFrame = (ProcessedFrame *)frame;
     ServiceState sid = processedFrame->sid;
@@ -29,23 +29,23 @@ uint32_t ecuReset(void *frame) {
 
     if (data_length < ECU_RESET_MIN_LENGTH) {
         response_code = 0x13;  // NRC: Incorrect message length or invalid format
-    }else if (!isSessionAllowed(ECU_RESET, g_session_info.current_session)) {
-        response_code = 0x7F;  // NRC: Service not supported in current session
     }
-    else {
+    else if (!isSessionAllowed(ECU_RESET, resetType)) {
+        response_code = 0x7F;  // NRC: Service not supported in current session
+    } else {
         switch (resetType) {
             case HARD_RESET:
-                printf("Hard reset requested\n");
+                printf("HARD RESET: %x\n", HARD_RESET);
                 /*call the users api*/
                 break;
                 
             case KEY_OFF_ON_RESET:
-                printf("key off on is implemented");
+                printf("KEY_OFF_ON: %x\n",KEY_OFF_ON_RESET);
                 /*call users api*/
                 break;
             case SOFT_RESET:
                 // Implement the reset logic here
-                printf("Performing ECU reset type: 0x%02X\n", resetType);
+                printf("SOFT_RESET: %X\n", SOFT_RESET);
                 // For demonstration, we'll just simulate a successful reset
                 break;
             default:
@@ -56,9 +56,30 @@ uint32_t ecuReset(void *frame) {
 
     // Prepare the response
     if (response_code == 0x00) {
-        response_frame.data[0] = 0x03;  // Response length
-        response_frame.data[1] = sid + 0x40;  // Positive response SID
-        response_frame.data[2] = resetType;  // Echo the reset type
+        if(authentication)
+        {
+            
+            printf("the current session is :%X\n", g_session_info.current_session);
+            //bool isServiceAllowedInCurrSess=udsServiceTable.row[i].allowed_sessions && (1 << (session - 1))) != 0
+            //if(g_session_info.current_session==udsServiceTable.row[1].allowed_sessions)
+            if(isSessionAllowedInService(ECU_RESET,g_session_info.current_session))
+            {
+                response_frame.data[0] = 0x03;  // Response length
+                response_frame.data[1] = sid + 0x40;  // Positive response SID
+                response_frame.data[2] = resetType;  // Echo the reset type
+            }
+            else{
+                response_frame.data[0] = 0x03;                  
+                response_frame.data[1] = sid;  
+                response_frame.data[2] = 0x7F;  
+            }
+        }
+        else{
+            response_frame.data[0] = 0x03;  // Response length
+            response_frame.data[1] = 0x7F;  // Negative response
+            response_frame.data[2] = sid;   // Service ID
+            response_frame.data[3] = 0x34;  // NRC
+        }
     } else {
         response_frame.data[0] = 0x03;  // Response length
         response_frame.data[1] = 0x7F;  // Negative response
@@ -77,6 +98,7 @@ uint32_t ecuReset(void *frame) {
     }
     printf("\n");
 
+    /*
     // Send the response frame
     int sockfd = getSocket();
     if (write(sockfd, &response_frame, sizeof(response_frame)) < 0) {
@@ -85,6 +107,6 @@ uint32_t ecuReset(void *frame) {
     } else {
         printf("ECU Reset response sent successfully\n");
     }
-
-    return response_code;
+`   */
+    return response_frame;
 }

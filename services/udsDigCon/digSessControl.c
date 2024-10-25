@@ -15,13 +15,16 @@
 #include "digSessControl.h"
 
 
+subFunction 
+
 /* Diagnostic Session Control service function */
-uint32_t diagnosticControl(void *frame)
+struct can_frame diagnosticControl(void *frame)
 {
     ProcessedFrame *processedFrame = (ProcessedFrame *)frame;
     ServiceState sid = processedFrame->sid;
     SubFunctionType subfunction = processedFrame->subfunction;
     uint8_t data_length = processedFrame->data_length;
+    printf("the data length is %d\n",data_length);
     UDS_Table udsServiceTable = {};
     getUDSTable(&udsServiceTable);
     // Define the response frame
@@ -37,6 +40,56 @@ uint32_t diagnosticControl(void *frame)
     printf("DIAGNOSIS_CONTROL : 0x%02X\n", sid);
     printf("subfunction extracted :%x\n", subfunction);
 
+    if (data_length < 0x02) {
+        response_code = 0x13;  // NRC: Incorrect message length or invalid format
+    }else if (!isSessionAllowed(DIAGNOSTIC_SESSION_CONTROL, subfunction)) {
+        response_code = 0x7F;  // NRC: Service not supported in current session
+    }
+    else {
+        switch (subfunction) {
+            case DEFAULT_SESSION:
+                printf("DEFAULT SESSION: 0x02%X\n",DEFAULT_SESSION);
+                /*call the users api*/
+                break;
+                
+            case PROGRAMMING_SESSION:
+                printf("PROGRAMMING SESSION: 0x02%X\n", PROGRAMMING_SESSION);
+                /*call users api*/
+                break;
+            case EXTENDED_SESSION:
+                // Implement the reset logic here
+                printf("EXTENDED SESSION: 0x02%X\n", EXTENDED_SESSION);
+                // For demonstration, we'll just simulate a successful reset
+                break;
+            default:
+                printf("SESSION IS NOT THERE:0x12");
+                response_code = 0x12;  // NRC: Subfunction not supported
+                break;
+        }
+    }
+
+    // Prepare the response
+    if (response_code == 0x00) {
+        response_frame.data[0] = 0x03;  // Response length
+        response_frame.data[1] = sid + 0x40;  // Positive response SID
+        response_frame.data[2] = subfunction;  // Echo the reset type
+        response_frame.data[3] = (g_session_info.p2_server_max >> 8) & 0xFF;
+        response_frame.data[4] = g_session_info.p2_server_max & 0xFF;
+        response_frame.data[5] = (g_session_info.p2_star_server_max >> 8) & 0xFF;
+        response_frame.data[6] = g_session_info.p2_star_server_max & 0xFF;
+        response_frame.can_dlc = 7;
+        // Update the session if the response is positive
+        updateSession(subfunction);
+    } else {
+        response_frame.data[0] = 0x03;  // Response length
+        response_frame.data[1] = 0x7F;  // Negative response
+        response_frame.data[2] = sid;   // Service ID
+        response_frame.data[3] = response_code;  // NRC
+        response_frame.can_dlc = 4;  // Update length for negative response
+    }
+
+
+   /*
     if (data_length < 0x02)
     {
         response_frame.data[0] = data_length;  // Negative response indication
@@ -44,23 +97,43 @@ uint32_t diagnosticControl(void *frame)
         response_frame.data[2] = response_code; // NRC
         response_code = 0x13; // NRC: Incorrect message length or invalid format
     }
-    //else if (subfunction == udsServiceTable.row[0].allowed_sessions)
-    else if (isSessionAllowed(DIAGNOSTIC_SESSION_CONTROL, subfunction))
+    else if (processedFrame->subfunction == udsServiceTable.row[0].allowed_sessions)
+    //else if (isSessionAllowed(DIAGNOSTIC_SESSION_CONTROL, subfunction))
     {
         if (authentication())
         {
+            printf("the subfunction i have added is :%d\n", subfunction);
+            switch (subfunction)
+            {
+            case DEFAULT_SESSION:
+                printf("came into the dwfault session");
+                break;
+            
+            case PROGRAMMING_SESSION:
+                printf("Came to programming session");
+                break;
+            
+            case EXTENDED_SESSION:
+                printf("came to extended session");
+                break;
+            
+            default:
+                break;
+            }
             // Update the session
-            updateSession((SubFunctionType)subfunction);
-            // Set positive response in CAN frame
-            response_frame.data[0] = data_length;  // Positive response code for Diagnostic Session Control
-            response_frame.data[1] = sid+0x40;   // SID
-            response_frame.data[2] = subfunction; // Subfunction
-            response_frame.data[3] = (g_session_info.p2_server_max >> 8) & 0xFF;
-            response_frame.data[4] = g_session_info.p2_server_max & 0xFF;
-            response_frame.data[5] = (g_session_info.p2_star_server_max >> 8) & 0xFF;
-            response_frame.data[6] = g_session_info.p2_star_server_max & 0xFF;
-            response_frame.can_dlc = 7;
-            printf("Ready to send positive response:\n");
+            //updateSession((SubFunctionType)subfunction);
+            // Set positive response in CAN fram
+            if(response_code==0x00){
+                response_frame.data[0] = data_length;  // Positive response code for Diagnostic Session Control
+                response_frame.data[1] = sid+0x40;   // SID
+                response_frame.data[2] = subfunction; // Subfunction
+                response_frame.data[3] = (g_session_info.p2_server_max >> 8) & 0xFF;
+                response_frame.data[4] = g_session_info.p2_server_max & 0xFF;
+                response_frame.data[5] = (g_session_info.p2_star_server_max >> 8) & 0xFF;
+                response_frame.data[6] = g_session_info.p2_star_server_max & 0xFF;
+                response_frame.can_dlc = 7;
+                printf("Ready to send positive response:\n");
+            }
         }
         else
         {
@@ -86,6 +159,8 @@ uint32_t diagnosticControl(void *frame)
         response_frame.data[2] = response_code; // NRC
     }
 
+    */
+
     // Print CAN frame for debugging
     printf("Sending CAN Frame:\n");
     printf("Can ID: 0x%03X\n", response_frame.can_id);
@@ -96,20 +171,7 @@ uint32_t diagnosticControl(void *frame)
         printf("%02X ", response_frame.data[i]);
     }
     printf("\n");
-
-    // Send the response frame
-    int sockfd = getSocket();  // Replace with your function to get the socket descriptor
-    if (write(sockfd, &response_frame, sizeof(response_frame)) < 0)
-    {
-        perror("write");
-        return 0xFF; // Return error code if unable to send response
-    }
-    else
-    {
-        printf("Positive response sent successfully\n");
-    }
-
-    return response_code;
+    return response_frame;
 }
 
 

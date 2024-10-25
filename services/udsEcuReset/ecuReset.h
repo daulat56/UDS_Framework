@@ -12,6 +12,6 @@ typedef enum {
     // Add other reset types as needed
 } ECUResetType;
 
-uint32_t ecuReset(void* frame);
+struct can_frame ecuReset(void* frame);
 
 #endif
