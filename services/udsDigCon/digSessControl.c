@@ -15,8 +15,27 @@
 #include "digSessControl.h"
 
 
-subFunction 
+void defaultSession(void) {
+    printf("Entering Default Session\n");
+    // Implement the logic for entering default session
+    //updateSession(DEFAULT_SESSION);
+    // You might want to reset certain parameters or states here
+}
 
+void programmingSession(void) {
+    printf("Entering Programming Session\n");
+    // Implement the logic for entering programming session
+    //updateSession(PROGRAMMING_SESSION);
+    // You might want to prepare the system for programming here
+    // For example, unlocking certain memory areas
+}
+
+void extendedSession(void) {
+    printf("Entering Extended Session\n");
+    // Implement the logic for entering extended session
+    //updateSession(EXTENDED_SESSION);
+    // You might want to enable certain extended features here
+}
 /* Diagnostic Session Control service function */
 struct can_frame diagnosticControl(void *frame)
 {
@@ -25,6 +44,10 @@ struct can_frame diagnosticControl(void *frame)
     SubFunctionType subfunction = processedFrame->subfunction;
     uint8_t data_length = processedFrame->data_length;
     printf("the data length is %d\n",data_length);
+    printf("DIAGNOSTIC SESSION CONTROL: 0x%02X\n",sid);
+    printf("the subfubction type : 0x%02x\n",subfunction);
+    return handleUDSRequest(DIAGNOSTIC_SESSION_CONTROL,subfunction,data_length);
+    /*
     UDS_Table udsServiceTable = {};
     getUDSTable(&udsServiceTable);
     // Define the response frame
@@ -49,12 +72,12 @@ struct can_frame diagnosticControl(void *frame)
         switch (subfunction) {
             case DEFAULT_SESSION:
                 printf("DEFAULT SESSION: 0x02%X\n",DEFAULT_SESSION);
-                /*call the users api*/
+              
                 break;
                 
             case PROGRAMMING_SESSION:
                 printf("PROGRAMMING SESSION: 0x02%X\n", PROGRAMMING_SESSION);
-                /*call users api*/
+        
                 break;
             case EXTENDED_SESSION:
                 // Implement the reset logic here
@@ -87,7 +110,7 @@ struct can_frame diagnosticControl(void *frame)
         response_frame.data[3] = response_code;  // NRC
         response_frame.can_dlc = 4;  // Update length for negative response
     }
-
+*/
 
    /*
     if (data_length < 0x02)
@@ -160,7 +183,7 @@ struct can_frame diagnosticControl(void *frame)
     }
 
     */
-
+/*
     // Print CAN frame for debugging
     printf("Sending CAN Frame:\n");
     printf("Can ID: 0x%03X\n", response_frame.can_id);
@@ -171,7 +194,9 @@ struct can_frame diagnosticControl(void *frame)
         printf("%02X ", response_frame.data[i]);
     }
     printf("\n");
+
     return response_frame;
+*/
 }
 
 

@@ -7,12 +7,45 @@
 
 #define ECU_RESET_MIN_LENGTH 2
 
+void hardReset(void) {
+    printf("Performing Hard Reset\n");
+    // Implement the hard reset logic here
+    // This might involve restarting the entire system
+    // For example:
+    // system("reboot");  // This is just an example, actual implementation may vary
+}
+
+void keyOffOnReset(void) {
+    printf("Performing Key Off On Reset\n");
+    // Implement the key off on reset logic here
+    // This might involve simulating a key cycle
+    // For example:
+    // turnOffSystems();
+    // sleep(1);  // Wait for 1 second
+    // turnOnSystems();
+}
+
+void softReset(void) {
+    printf("Performing Soft Reset\n");
+    // Implement the soft reset logic here
+    // This might involve restarting certain processes or reinitializing some systems
+    // For example:
+    // reinitializeSubsystems();
+}
+
 struct can_frame ecuReset(void *frame) {
     printf("ecu reset is called");
     ProcessedFrame *processedFrame = (ProcessedFrame *)frame;
     ServiceState sid = processedFrame->sid;
     ECUResetType resetType = (ECUResetType)processedFrame->subfunction;
     uint8_t data_length = processedFrame->data_length;
+
+    printf("ECU_RESET : 0x%02X\n", sid);
+    printf("Reset type: 0x%02X\n", resetType);
+
+    return handleUDSRequest(ECU_RESET, resetType, data_length);
+
+    /*
     UDS_Table udsServiceTable = {};
     getUDSTable(&udsServiceTable);
     // Define the response frame
@@ -36,12 +69,12 @@ struct can_frame ecuReset(void *frame) {
         switch (resetType) {
             case HARD_RESET:
                 printf("HARD RESET: %x\n", HARD_RESET);
-                /*call the users api*/
+                
                 break;
                 
             case KEY_OFF_ON_RESET:
                 printf("KEY_OFF_ON: %x\n",KEY_OFF_ON_RESET);
-                /*call users api*/
+               
                 break;
             case SOFT_RESET:
                 // Implement the reset logic here
@@ -98,15 +131,7 @@ struct can_frame ecuReset(void *frame) {
     }
     printf("\n");
 
-    /*
-    // Send the response frame
-    int sockfd = getSocket();
-    if (write(sockfd, &response_frame, sizeof(response_frame)) < 0) {
-        perror("write");
-        return 0xFF;  // Return error code if unable to send response
-    } else {
-        printf("ECU Reset response sent successfully\n");
-    }
-`   */
-    return response_frame;
+    
+    //eturn response_frame;
+    */
 }

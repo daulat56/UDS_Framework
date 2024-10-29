@@ -75,15 +75,25 @@ typedef struct {
     uint8_t data[4096]; // Buffer for multi-frame data (adjust size as needed)
 } ProcessedFrame;
 
+typedef struct {
+    SubFunctionType subfunction;
+    uint8_t allowed_sessions[5];
+    bool auth;
+    uint8_t secSupp;
+    UDS_SuppLevel security_level[MAX_SE_SIZE];          // Security level
+    void (*subfunction_handler)(void);
+} SubFunctionEntry;
 /* Define a structure to map services to sessions and functions */
 typedef struct {
     ServiceState service_id;              // The service ID (e.g., DIAGNOSTIC_SESSION_CONTROL)
     uint8_t min_data_length;              // Minimum required data length for the service
     struct can_frame (*service_handler)(void*);   // Pointer to the service handler function
-    uint8_t allowed_sessions;             // Sessions allowed for this service
+    uint8_t allowed_sessions[5];             // Sessions allowed for this service
     uint8_t auth;                         // Authentication
     uint8_t secSupp;                       // Security suppression
     UDS_SuppLevel security_level[MAX_SE_SIZE];          // Security level
+    SubFunctionEntry* subfunctions;
+    size_t num_subfunctions;
 } UdsServiceMap;
 
 /* Declare the UDS Service Table */
@@ -92,17 +102,21 @@ typedef struct {
     uint8_t size;
 }UDS_Table;
 
-/*Subfunction with its properties*/
-typedef struct {
 
-}subfunctionTable;
+typedef enum {
+    RESPONSE_POSITIVE = 0x00,
+    RESPONSE_NEGATIVE_SERVICE_NOT_SUPPORTED = 0x11,
+    RESPONSE_NEGATIVE_SUBFUNCTION_NOT_SUPPORTED = 0x12,
+    RESPONSE_NEGATIVE_INCORRECT_LENGTH = 0x13,
+    RESPONSE_NEGATIVE_SECURITY_ACCESS_DENIED = 0x34,
+    RESPONSE_NEGATIVE_SERVICE_NOT_SUPPORTED_IN_ACTIVE_SESSION = 0x7F,
+    RESPONSE_NEGATIVE_SUBFUNCTION_NOT_SUPPORTED_IN_ACTIVE_SESSION = 0x7E
+} ResponseCode;
+/*To handle the flow control */
 
-typedef struct{
-    subfunctionTable row[2];
-    uint8_t size;
-}serviceTable;
 
 
+struct can_frame handleUDSRequest(ServiceState sid, SubFunctionType subfunction, uint8_t data_length);
 /* Function pointer type definition for UDS service handlers */
 typedef struct can_frame (*ServiceHandler)(ProcessedFrame frame);
 void prepare_response(uint8_t *response_data, uint32_t response_code, ServiceState sid, SubFunctionType subfunction);
@@ -116,6 +130,7 @@ void initializeSession(void);
 void updateSession(SubFunctionType new_session);
 bool isSessionAllowed(ServiceState service, SubFunctionType session);
 bool isSessionAllowedInService(ServiceState service, SubFunctionType requested_session);
+bool isSubfunctionSupportedInSession(SubFunctionEntry *SubFunction, SubFunctionType current_session);
 // Change the getUDSTable function to a declaration
 size_t getUDSTable(UDS_Table *tableReference);
 bool authentication(void);

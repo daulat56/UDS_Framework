@@ -84,7 +84,7 @@ int main() {
         }
         // Send the message
         send_can_message(sockfd, 0x123, data);
-        sleep(10);
+        sleep(2);
 
         struct can_frame response;
         int nbytes = read(sockfd, &response, sizeof(response));
